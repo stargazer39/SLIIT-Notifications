@@ -2,6 +2,7 @@ import axios from "axios";
 import axiosCookieJarSupport from "axios-cookiejar-support";
 import tough from "tough-cookie";
 import querystring from "querystring";
+import cheerio from "cheerio";
 
 axiosCookieJarSupport(axios);
 
@@ -15,12 +16,13 @@ export class SliitAPI {
 
     login(username : string, password : string){
         return new Promise((resolve ,reject) => {
+            // Get the default cookie to the cookie jar
             axios.get("https://courseweb.sliit.lk/", {
                 jar: this.cookieJar,
                 withCredentials: true,
             })
             .then(() => {
-                console.log(this.cookieJar);
+                // Send username and password with POST
                 axios.post("https://courseweb.sliit.lk/login/index.php?authldap_skipntlmsso=1",
                  querystring.stringify({
                     username:username,
@@ -32,13 +34,8 @@ export class SliitAPI {
                     jar:this.cookieJar,
                     withCredentials: true
                 }).then((data) => {
-                    axios.get("https://courseweb.sliit.lk/my/", {
-                        jar: this.cookieJar,
-                        withCredentials: true,
-                    }).then((data) => {
-                        console.log("Login sucsesss.");
-                        resolve(data.data);
-                    });
+                    // Resolve response data
+                    resolve(data.data);
                 }).catch(() => {
                     console.log("Login failed.");
                 })
