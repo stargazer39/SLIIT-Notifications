@@ -44,7 +44,6 @@ export class SliitAPI {
                         reject("Wrong username or password?");
                         return;
                     }
-                    console.log(this.cookieJar.serializeSync());
                 }).catch(() => {
                     console.log("Login failed.");
                     reject("Login failed.");
