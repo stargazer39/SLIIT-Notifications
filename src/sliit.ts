@@ -34,15 +34,38 @@ export class SliitAPI {
                     jar:this.cookieJar,
                     withCredentials: true
                 }).then((data) => {
-                    // Resolve response data
-                    resolve(data.data);
+                    // Assert if user logged in
+                    let logged = this._assertLogin(data.data, username);
+                    if(logged){
+                        // Resolve
+                        resolve(true);
+                        return;
+                    }else{
+                        reject("Wrong username or password?");
+                        return;
+                    }
+                    console.log(this.cookieJar.serializeSync());
                 }).catch(() => {
                     console.log("Login failed.");
+                    reject("Login failed.");
+                    return;
                 })
             })
             .catch(() => {
                 console.log("Connection faild.");
+                reject("Connection faild.");
+                return;
             });
         });
+    }
+    private _assertLogin(html : any, username : string) : boolean{
+        const $ = cheerio.load(html);
+        const user_string = $("#loggedin-user .usertext").text();
+
+        if(user_string && user_string.toLowerCase().indexOf(username.toLowerCase()) > -1){
+            return true;
+        }else{
+            return false;
+        }
     }
 }
