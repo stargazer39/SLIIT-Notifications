@@ -10,12 +10,17 @@ axiosCookieJarSupport(axios);
 export class SliitAPI {
     cookieJar : tough.CookieJar;
     logged : boolean = false;
+    username : string;
+    password : string;
 
     constructor(){
         this.cookieJar = new tough.CookieJar();
     }
 
     login(username : string, password : string){
+        this.username = username;
+        this.password = password;
+
         return new Promise((resolve ,reject) => {
             // Get the default cookie to the cookie jar
             axios.get("https://courseweb.sliit.lk/", {
@@ -36,7 +41,8 @@ export class SliitAPI {
                     withCredentials: true
                 }).then((data) => {
                     // Assert if user logged in
-                    let logged = this._assertLogin(data.data, username);
+                    const doc = cheerio.load(data.data)
+                    let logged = this._assertLogin(doc, username);
                     if(logged){
                         // Resolve
                         this.logged = true;
@@ -62,9 +68,8 @@ export class SliitAPI {
             });
         });
     }
-    private _assertLogin(html : any, username : string) : boolean{
-        const $ = cheerio.load(html);
-        const user_string = $("#loggedin-user .usertext").text();
+    private _assertLogin(root : cheerio.Root, username : string) : boolean{
+        const user_string = root("#loggedin-user .usertext").text();
 
         if(user_string && user_string.toLowerCase().indexOf(username.toLowerCase()) > -1){
             return true;
@@ -84,6 +89,12 @@ export class SliitAPI {
                 withCredentials: true
             }).then((res) => {
                 const $ = cheerio.load(res.data);
+                // Assert if logged in
+                if(!this._assertLogin($, this.username)){
+                    reject("Login error. getEnrolledModules");
+                    return;
+                }
+
                 const mycourses = $("a[title='My courses'] ~ ul > li a");
                 const courses = [];
                 
