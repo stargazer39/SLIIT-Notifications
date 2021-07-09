@@ -104,10 +104,14 @@ export class SliitAPI {
                 
                 for(const c of mycourses){
                     let elem = $(c);
-                    courses.push({
-                        "name":elem.text(),
-                        "href":elem.attr("href"),
-                    })
+                    let title = elem.text();
+
+                    if(title) {
+                        courses.push({
+                            "name":title,
+                            "href":elem.attr("href"),
+                        })
+                    }
                 }
                 resolve(courses);
             })
