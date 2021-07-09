@@ -9,6 +9,7 @@ axiosCookieJarSupport(axios);
 
 export class SliitAPI {
     cookieJar : tough.CookieJar;
+    logged : boolean = false;
 
     constructor(){
         this.cookieJar = new tough.CookieJar();
@@ -38,20 +39,24 @@ export class SliitAPI {
                     let logged = this._assertLogin(data.data, username);
                     if(logged){
                         // Resolve
+                        this.logged = true;
                         resolve(true);
                         return;
                     }else{
+                        this.logged = false;
                         reject("Wrong username or password?");
                         return;
                     }
                 }).catch(() => {
                     console.log("Login failed.");
+                    this.logged = false;
                     reject("Login failed.");
                     return;
                 })
             })
             .catch(() => {
                 console.log("Connection faild.");
+                this.logged = false;
                 reject("Connection faild.");
                 return;
             });
