@@ -19,8 +19,9 @@ console.log(`Configured with creds : ${creds.username} , ${creds.password}`);
 app.get("/", async (req,res) => {
     let sliit = new SliitAPI();
     try {
-        let data = await sliit.login(creds.username, creds.password);
-        res.end(data ? "Logged in" : "Logging failed");
+        await sliit.login(creds.username, creds.password);
+        let modules = await sliit.getEnrolledModules();
+        res.end(JSON.stringify(modules));
     }catch(e){
         res.end(e);
     }

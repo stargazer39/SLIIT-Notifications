@@ -72,4 +72,30 @@ export class SliitAPI {
             return false;
         }
     }
+    getEnrolledModules() {
+        return new Promise((resolve, reject) =>{
+            if(!this.logged){
+                reject("No one logged in. Run login() first.");
+                return;
+            }
+            
+            axios.get("https://courseweb.sliit.lk/my/",{
+                jar:this.cookieJar,
+                withCredentials: true
+            }).then((res) => {
+                const $ = cheerio.load(res.data);
+                const mycourses = $("a[title='My courses'] ~ ul > li a");
+                const courses = [];
+                
+                for(const c of mycourses){
+                    let elem = $(c);
+                    courses.push({
+                        "name":elem.text(),
+                        "href":elem.attr("href"),
+                    })
+                }
+                resolve(courses);
+            });
+        });
+    }
 }
