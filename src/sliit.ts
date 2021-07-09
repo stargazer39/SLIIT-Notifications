@@ -6,6 +6,10 @@ import cheerio from "cheerio";
 
 axiosCookieJarSupport(axios);
 
+export interface CourseModule {
+    name: string;
+    href?: string;
+}
 
 export class SliitAPI {
     cookieJar : tough.CookieJar;
@@ -77,7 +81,7 @@ export class SliitAPI {
             return false;
         }
     }
-    getEnrolledModules() {
+    getEnrolledModules() :  Promise<CourseModule[]> {
         return new Promise((resolve, reject) =>{
             if(!this.logged){
                 reject("No one logged in. Run login() first.");
@@ -96,7 +100,7 @@ export class SliitAPI {
                 }
 
                 const mycourses = $("a[title='My courses'] ~ ul > li a");
-                const courses = [];
+                const courses : CourseModule[] = [];
                 
                 for(const c of mycourses){
                     let elem = $(c);
@@ -106,7 +110,37 @@ export class SliitAPI {
                     })
                 }
                 resolve(courses);
-            });
+            })
+            .catch((e) => {
+                reject(e);
+                return;
+            })
         });
+    }
+    getModuleContent(module : CourseModule): Promise<any> {
+        return new Promise((resolve, reject) => {
+            if(!module.href){
+                reject("No href in module");
+                return;
+            }
+            axios.get(module.href, {
+                jar: this.cookieJar,
+                withCredentials: true
+            }).then((res) => {
+                const $ = cheerio.load(res.data);
+                // Assert if logged in
+                if(!this._assertLogin($, this.username)){
+                    reject("Login error. getModuleContent");
+                    return;
+                }
+
+                const content = $(".course-content").html();
+                resolve(content);
+                return;
+            })
+            .catch((e) => {
+                reject(e);
+            });
+        })
     }
 }

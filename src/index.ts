@@ -1,5 +1,5 @@
 import express from "express";
-import { SliitAPI } from "./sliit";
+import { SliitAPI, CourseModule } from "./sliit";
 import readline from "readline";
 import fs from "fs";
 
@@ -21,7 +21,9 @@ app.get("/", async (req,res) => {
     try {
         await sliit.login(creds.username, creds.password);
         let modules = await sliit.getEnrolledModules();
-        res.end(JSON.stringify(modules));
+        let course_content = await sliit.getModuleContent(modules[0]);
+        res.setHeader("Content-Type","text/html");
+        res.end(course_content);
     }catch(e){
         res.end(e);
     }
