@@ -11,9 +11,17 @@ export interface CourseModule {
     href?: string;
 }
 
+export enum LoginState {
+    sucessForSure,
+    alreadySucess,
+    errorCredentials,
+    connectionError,
+    notLogged
+}
+
 export class SliitAPI {
     cookieJar : tough.CookieJar;
-    logged : boolean = false;
+    logged : LoginState = LoginState.notLogged;
     username : string;
     password : string;
 
@@ -21,11 +29,17 @@ export class SliitAPI {
         this.cookieJar = new tough.CookieJar();
     }
 
-    login(username : string, password : string){
+    login(username : string, password : string, forced? : boolean){
         this.username = username;
         this.password = password;
 
         return new Promise((resolve ,reject) => {
+            // Check already logged in
+            if(this.logged && !forced){
+                this.logged = LoginState.alreadySucess;
+                resolve(LoginState.alreadySucess);
+                return;
+            }
             // Get the default cookie to the cookie jar
             axios.get("https://courseweb.sliit.lk/", {
                 jar: this.cookieJar,
@@ -49,25 +63,25 @@ export class SliitAPI {
                     let logged = this._assertLogin(doc, username);
                     if(logged){
                         // Resolve
-                        this.logged = true;
-                        resolve(true);
+                        this.logged = LoginState.sucessForSure;
+                        resolve(LoginState.sucessForSure);
                         return;
                     }else{
-                        this.logged = false;
-                        reject("Wrong username or password?");
+                        this.logged = LoginState.errorCredentials;
+                        reject(LoginState.errorCredentials);
                         return;
                     }
                 }).catch(() => {
                     console.log("Login failed.");
-                    this.logged = false;
-                    reject("Login failed.");
+                    this.logged = LoginState.connectionError;
+                    reject(LoginState.connectionError);
                     return;
                 })
             })
             .catch(() => {
                 console.log("Connection faild.");
-                this.logged = false;
-                reject("Connection faild.");
+                this.logged = LoginState.connectionError;
+                reject(LoginState.connectionError);
                 return;
             });
         });
