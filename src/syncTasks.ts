@@ -1,5 +1,6 @@
 import { MongoConnect } from './mongo';
 import { SliitAPI,CourseModule,CourseModuleToMap } from './sliit';
+import { compareHTML } from './domCompare';
 
 export class SyncTask {
     private rate : number;
@@ -58,9 +59,10 @@ export class SyncTask {
         for(const m of data.modules as CourseModule[]) {
             let oldPage = await this.client.findOne("history", { href: m.href });
             if(oldPage){
-                console.log("Found");
+                console.log(`${m.name} Found. Checking for updates.`);
+                await this._compareAndUpdate(oldPage, m);
             }else{
-                console.log("Not Found");
+                console.log(`Not Found. Adding initial history for ${m.name}`);
                 await this._addInitialHistory(m);
             }
         }
@@ -77,8 +79,15 @@ export class SyncTask {
         });
     }
 
-    private async _compareAndUpdate(oldPage : any, module : CourseModule) {
-
+    private async _compareAndUpdate(oldPage : any, mod : CourseModule) {
+        let newPageHTML = await this.sliit.getModuleContent(mod.href);
+        let changes : any = compareHTML(oldPage.html, newPageHTML);
+        if(changes.diffrent){
+            console.log(`Things have chaged in ${mod.name}`);
+            console.log(changes);
+        }else{
+            console.log(`Things have not chaged in ${mod.name}`);
+        }
     }
 
     async _task() {
