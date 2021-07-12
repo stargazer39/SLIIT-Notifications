@@ -32,7 +32,6 @@ export class SyncTask {
 
         //Assert if modules are the same
         for(let [key, value] of oldMap){
-            console.log(key,value);
             if(newMap.has(key)){
                 if(value != newMap.get(key)){
                     console.warn("None matching URLs found for " + key);
@@ -53,8 +52,39 @@ export class SyncTask {
         await this.client.updateOne("config", { type:"modules" }, { $set:{ modules: newData, updates:true } });
         return newMap;
     }
-}
 
-export function startSync() {
+    async syncPages() {
+        let data : any = await this.client.findOne("config", { type: "modules"});
+        for(const m of data.modules as CourseModule[]) {
+            let oldPage = await this.client.findOne("history", { href: m.href });
+            if(oldPage){
+                console.log("Found");
+            }else{
+                console.log("Not Found");
+                await this._addInitialHistory(m);
+            }
+        }
+    }
 
+    private async _addInitialHistory(m : CourseModule) {
+        let page = await this.sliit.getModuleContent(m.href);
+        await this.client.insertOne("history", {
+            types: "history",
+            name: m.name,
+            href: m.href,
+            html: page,
+            lastUpdated: new Date()
+        });
+    }
+
+    private async _compareAndUpdate(oldPage : any, module : CourseModule) {
+
+    }
+
+    async _task() {
+        await this.init();
+        await this.syncModules();
+        await this.syncPages();
+        console.log("Pages synced.");
+    }
 }
