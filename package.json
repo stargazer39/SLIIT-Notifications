@@ -28,6 +28,7 @@
     "axios-cookiejar-support": "^1.0.1",
     "cheerio": "^1.0.0-rc.10",
     "express": "^4.17.1",
+    "html-compare": "0.0.1",
     "i": "^0.3.6",
     "mongodb": "^3.6.10",
     "npm": "^7.19.1",
