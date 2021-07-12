@@ -3,6 +3,8 @@ import axiosCookieJarSupport from "axios-cookiejar-support";
 import tough from "tough-cookie";
 import querystring from "querystring";
 import cheerio from "cheerio";
+import { sleep } from "./common";
+import { UsenameAssertionError } from "./sliitErrors";
 
 axiosCookieJarSupport(axios);
 
@@ -11,17 +13,8 @@ export interface CourseModule {
     href?: string;
 }
 
-export enum LoginState {
-    sucessForSure,
-    alreadySucess,
-    errorCredentials,
-    connectionError,
-    notLogged
-}
-
 export class SliitAPI {
     cookieJar : tough.CookieJar;
-    logged : LoginState = LoginState.notLogged;
     username : string;
     password : string;
 
@@ -29,63 +22,32 @@ export class SliitAPI {
         this.cookieJar = new tough.CookieJar();
     }
 
-    login(username : string, password : string, forced? : boolean){
+    async login(username : string, password : string): Promise<boolean> {
         this.username = username;
         this.password = password;
 
-        return new Promise((resolve ,reject) => {
-            // Check already logged in
-            if(this.logged && !forced){
-                this.logged = LoginState.alreadySucess;
-                resolve(LoginState.alreadySucess);
-                return;
-            }
-            // Get the default cookie to the cookie jar
-            axios.get("https://courseweb.sliit.lk/", {
-                jar: this.cookieJar,
-                withCredentials: true,
-            })
-            .then(() => {
-                // Send username and password with POST
-                axios.post("https://courseweb.sliit.lk/login/index.php?authldap_skipntlmsso=1",
-                 querystring.stringify({
-                    username:username,
-                    password:password
-                 }),{
-                    headers:{
-                        "Content-Type":"application/x-www-form-urlencoded",
-                    },
-                    jar:this.cookieJar,
-                    withCredentials: true
-                }).then((data) => {
-                    // Assert if user logged in
-                    const doc = cheerio.load(data.data)
-                    let logged = this._assertLogin(doc, username);
-                    if(logged){
-                        // Resolve
-                        this.logged = LoginState.sucessForSure;
-                        resolve(LoginState.sucessForSure);
-                        return;
-                    }else{
-                        this.logged = LoginState.errorCredentials;
-                        reject(LoginState.errorCredentials);
-                        return;
-                    }
-                }).catch(() => {
-                    console.log("Login failed.");
-                    this.logged = LoginState.connectionError;
-                    reject(LoginState.connectionError);
-                    return;
-                })
-            })
-            .catch(() => {
-                console.log("Connection faild.");
-                this.logged = LoginState.connectionError;
-                reject(LoginState.connectionError);
-                return;
-            });
-        });
+        if(!username || !password){
+            throw new Error("No Username or password");
+        }
+
+        let guestPage, loggedInPage, doc, logged;
+        guestPage = await axios.get("https://courseweb.sliit.lk/", { jar: this.cookieJar, withCredentials: true });
+        loggedInPage =  await axios.post("https://courseweb.sliit.lk/login/index.php?authldap_skipntlmsso=1",
+                                    querystring.stringify({
+                                        username:username,
+                                        password:password
+                                    }),{
+                                    headers:{
+                                        "Content-Type":"application/x-www-form-urlencoded",
+                                    },
+                                    jar:this.cookieJar,
+                                    withCredentials: true
+                                });
+        doc = cheerio.load(loggedInPage.data)
+        logged = this._assertLogin(doc, username);
+        return logged;
     }
+
     private _assertLogin(root : cheerio.Root, username : string) : boolean{
         const user_string = root("#loggedin-user .usertext").text();
 
@@ -95,70 +57,77 @@ export class SliitAPI {
             return false;
         }
     }
-    getEnrolledModules() :  Promise<CourseModule[]> {
-        return new Promise((resolve, reject) =>{
-            if(!this.logged){
-                reject("No one logged in. Run login() first.");
-                return;
+
+    private async _getEnrolledModules(): Promise<CourseModule[]>{
+        let res, $;
+        res = await axios.get("https://courseweb.sliit.lk/my/",{ jar:this.cookieJar, withCredentials: true });
+        $ = cheerio.load(res.data);
+        
+        
+        // Assert if logged in
+        if(!this._assertLogin($, this.username)){
+            throw new UsenameAssertionError("Assertion Error.");
+        }
+
+        const mycourses = $("a[title='My courses'] ~ ul > li a");
+        const courses : CourseModule[] = [];
+
+        for(const c of mycourses){
+            let elem = $(c);
+            let title = elem.text();
+
+            if(title) {
+                courses.push({
+                    "name":title,
+                    "href":elem.attr("href"),
+                })
             }
-            
-            axios.get("https://courseweb.sliit.lk/my/",{
-                jar:this.cookieJar,
-                withCredentials: true
-            }).then((res) => {
-                const $ = cheerio.load(res.data);
-                // Assert if logged in
-                if(!this._assertLogin($, this.username)){
-                    reject("Login error. getEnrolledModules");
-                    return;
-                }
-
-                const mycourses = $("a[title='My courses'] ~ ul > li a");
-                const courses : CourseModule[] = [];
-                
-                for(const c of mycourses){
-                    let elem = $(c);
-                    let title = elem.text();
-
-                    if(title) {
-                        courses.push({
-                            "name":title,
-                            "href":elem.attr("href"),
-                        })
-                    }
-                }
-                resolve(courses);
-            })
-            .catch((e) => {
-                reject(e);
-                return;
-            })
-        });
+        }
+        return courses;
     }
-    getModuleContent(module : CourseModule): Promise<any> {
-        return new Promise((resolve, reject) => {
-            if(!module.href){
-                reject("No href in module");
-                return;
-            }
-            axios.get(module.href, {
-                jar: this.cookieJar,
-                withCredentials: true
-            }).then((res) => {
-                const $ = cheerio.load(res.data);
-                // Assert if logged in
-                if(!this._assertLogin($, this.username)){
-                    reject("Login error. getModuleContent");
-                    return;
-                }
 
-                const content = $(".course-content").html();
-                resolve(content);
-                return;
-            })
-            .catch((e) => {
-                reject(e);
-            });
-        })
+    async getEnrolledModules(): Promise<CourseModule[]>{
+        return await this._retry(this._getEnrolledModules.bind(this));
+    }
+
+    async _retry(asyncFunc : Function) {
+        let retryCount = 5;
+
+        while(true){
+            try{
+                let result = await asyncFunc();
+                return result;
+            }catch(e){
+                if(e instanceof UsenameAssertionError){
+                    await this.login(this.username, this.password);
+                }
+                console.log("Retrying in 3 seconds.");
+                if(retryCount <= 0){
+                    throw new Error("getEnrolledModules faild. Last error : " + e);
+                }
+                retryCount--;
+                await sleep(3000);
+            }
+        }
+    }
+
+    async getModuleContent(m : CourseModule){
+        return await this._retry(async () => { return await this._getModuleContent(m); });
+    }
+
+    private async _getModuleContent(m : CourseModule): Promise<any> {
+        if(!m || !m.href) {
+            throw new Error("Wrong href");
+        }
+        let modulePage = await axios.get(m.href, { jar: this.cookieJar, withCredentials: true });
+        const $ = cheerio.load(modulePage.data);
+        
+        // Assert if logged in
+        if(!this._assertLogin($, this.username)){
+            throw new UsenameAssertionError("Assertion Error.");
+        }
+
+        const content = $(".course-content").html();
+        return content;
     }
 }
