@@ -38,7 +38,7 @@ export class SyncTask {
                     console.warn("None matching URLs found for " + key);
                 }
             }else{
-                throw Error("New Map has come values changed");
+                throw Error("New Map has some values changed");
             }
         }
 
@@ -56,5 +56,5 @@ export class SyncTask {
 }
 
 export function startSync() {
-    
+
 }
