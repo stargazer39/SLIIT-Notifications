@@ -38,4 +38,42 @@ export class MongoConnect {
         })
     }
 
+    insertMany(collection : string, obj : any){
+        return new Promise((resolve,reject) => {
+            const c = this.db.collection(collection);
+            c.insertMany(obj, (err,res) => {
+                if(err){
+                    reject(err);
+                    return;
+                }
+                resolve(res);
+            })
+        })
+    }
+
+    findOne(collection : string, obj : any){
+        return new Promise((resolve,reject) => {
+            const c = this.db.collection(collection);
+            c.findOne(obj, (err,res) => {
+                if(err){
+                    reject(err);
+                    return;
+                }
+                resolve(res);
+            })
+        })
+    }
+
+    updateOne(collection : string, findObj : any, setObj : any){
+        return new Promise((resolve, reject) => {
+            const c = this.db.collection(collection);
+            c.updateOne(findObj, setObj, (err,res) => {
+                if(err){
+                    reject(err);
+                    return;
+                }
+                resolve(res);
+            })
+        })
+    }
 }
