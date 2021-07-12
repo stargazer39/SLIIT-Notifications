@@ -22,7 +22,11 @@ export class SliitAPI {
         this.cookieJar = new tough.CookieJar();
     }
 
-    async login(username : string, password : string): Promise<boolean> {
+    async login(username : string, password : string): Promise<boolean>{
+        return await this._retry(async () => { return await this._login(username, password); }, this._login.name);
+    }
+
+    private async _login(username : string, password : string): Promise<boolean> {
         this.username = username;
         this.password = password;
 
@@ -58,7 +62,7 @@ export class SliitAPI {
         }
     }
 
-    private async _getEnrolledModules(): Promise<CourseModule[]>{
+    private async _getEnrolledModules(): Promise<Map<string,string>>{
         let res, $;
         res = await axios.get("https://courseweb.sliit.lk/my/",{ jar:this.cookieJar, withCredentials: true });
         $ = cheerio.load(res.data);
@@ -70,27 +74,24 @@ export class SliitAPI {
         }
 
         const mycourses = $("a[title='My courses'] ~ ul > li a");
-        const courses : CourseModule[] = [];
+        const courses : Map<string,string> = new Map();
 
         for(const c of mycourses){
             let elem = $(c);
             let title = elem.text();
 
             if(title) {
-                courses.push({
-                    "name":title,
-                    "href":elem.attr("href"),
-                })
+                courses.set(title, elem.attr("href"));
             }
         }
         return courses;
     }
 
-    async getEnrolledModules(): Promise<CourseModule[]>{
-        return await this._retry(this._getEnrolledModules.bind(this));
+    async getEnrolledModules(): Promise<Map<string,string>>{
+        return await this._retry(this._getEnrolledModules.bind(this), this._getEnrolledModules.name);
     }
 
-    async _retry(asyncFunc : Function) {
+    async _retry(asyncFunc : Function, name : string) {
         let retryCount = 5;
 
         while(true){
@@ -101,9 +102,9 @@ export class SliitAPI {
                 if(e instanceof UsenameAssertionError){
                     await this.login(this.username, this.password);
                 }
-                console.log("Retrying in 3 seconds.");
+                console.log(`Retrying ${name || "Unknown Function"} in 3 seconds.`);
                 if(retryCount <= 0){
-                    throw new Error("getEnrolledModules faild. Last error : " + e);
+                    throw new Error(`${name || "Unknown Function"} faild. With :\n${e}`);
                 }
                 retryCount--;
                 await sleep(3000);
@@ -111,15 +112,15 @@ export class SliitAPI {
         }
     }
 
-    async getModuleContent(m : CourseModule){
-        return await this._retry(async () => { return await this._getModuleContent(m); });
+    async getModuleContent(m : string){
+        return await this._retry(async () => { return await this._getModuleContent(m); }, this._getModuleContent.name);
     }
 
-    private async _getModuleContent(m : CourseModule): Promise<any> {
-        if(!m || !m.href) {
+    private async _getModuleContent(m : string): Promise<any> {
+        if(!m) {
             throw new Error("Wrong href");
         }
-        let modulePage = await axios.get(m.href, { jar: this.cookieJar, withCredentials: true });
+        let modulePage = await axios.get(m, { jar: this.cookieJar, withCredentials: true });
         const $ = cheerio.load(modulePage.data);
         
         // Assert if logged in
@@ -130,4 +131,12 @@ export class SliitAPI {
         const content = $(".course-content").html();
         return content;
     }
+}
+
+export function CourseModuleToMap(arr : CourseModule[]) {
+    let m = new Map();
+    for(const elem of arr){
+        m.set(elem.name, elem.href);
+    }
+    return m;
 }
