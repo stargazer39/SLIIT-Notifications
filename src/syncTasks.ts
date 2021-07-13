@@ -100,7 +100,7 @@ export class SyncTask {
             console.log(sections);
             let resSects, changes;
             try{
-                result.changes.map((val : any, i : number) => {
+                changes = result.changes.map((val : any, i : number) => {
                     return val.message;
                   });
                 resSects = sections.map((val,i) => { return val.html() });
