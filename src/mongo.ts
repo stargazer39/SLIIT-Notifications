@@ -64,6 +64,13 @@ export class MongoConnect {
         })
     }
 
+    find(collection : string, obj : any){
+        return new Promise((resolve,reject) => {
+            const c = this.db.collection(collection);
+            resolve(c.find(obj));
+        })
+    }
+
     updateOne(collection : string, findObj : any, setObj : any){
         return new Promise((resolve, reject) => {
             const c = this.db.collection(collection);
