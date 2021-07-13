@@ -41,13 +41,12 @@ export class TelegramClient {
         // process.once('SIGTERM', () => this.bot.stop('SIGTERM'))
     }
     send(message : string){
-        let count = 0;
         for(const c of this.chatIDs){
+            let count = 0;
             while(count < message.length){
                 this.bot.telegram.sendMessage(c,message.substring(count,MAX_LENGTH));
                 count += MAX_LENGTH;
             }
-            
         }
     }
 }
