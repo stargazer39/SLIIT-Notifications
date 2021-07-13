@@ -91,7 +91,7 @@ export class SyncTask {
         if(result.diffrent){
             console.log(`Things have chaged in ${mod.name}`);
             let sections : any[] = [];
-            for(const c of result){
+            for(const c of result.changes){
                 let sect = c.after.$node.closest(".section.main");
                 if(!sections.includes(sect)){
                     sections.push(sect);
@@ -134,7 +134,7 @@ export class SyncTask {
     async start() {
         while(true){
             await this._task();
-            await sleep(10*60*1000);
+            await sleep(30*60*1000);
         }
     }
 
