@@ -3,6 +3,7 @@ import { SliitAPI,CourseModule,CourseModuleToMap } from './sliit';
 import { compareHTML } from './domCompare';
 import { TelegramClient } from './telegram';
 import { sleep } from './common';
+import fs from 'fs';
 
 export class SyncTask {
     private rate : number;
@@ -60,10 +61,10 @@ export class SyncTask {
 
     async syncPages() {
         let data : any = await this.client.findOne("config", { type: "modules"});
-        this._tlog("Page syncing started.");
+        //this._tlog("Page syncing started.");
 
         for(const m of data.modules as CourseModule[]) {
-            let oldPage = await this.client.findOne("currrent", { href: m.href });
+            let oldPage = await this.client.findOne("current", { href: m.href });
             if(oldPage){
                 console.log(`${m.name} Found. Checking for updates.`);
                 await this._compareAndUpdate(oldPage, m);
@@ -76,7 +77,7 @@ export class SyncTask {
 
     private async _addInitialHistory(m : CourseModule) {
         let page = await this.sliit.getModuleContent(m.href);
-        await this.client.insertOne("currrent", {
+        await this.client.insertOne("current", {
             types: "history",
             name: m.name,
             href: m.href,
@@ -87,48 +88,71 @@ export class SyncTask {
 
     private async _compareAndUpdate(oldPage : any, mod : CourseModule) {
         let newPageHTML = await this.sliit.getModuleContent(mod.href);
+        /*if(mod.name == "Communication Skills - IT1040  [2020/JUL]"){
+            console.log("lol");
+            newPageHTML = fs.readFileSync("tmp/Communication Skills - IT1040  [2020-JUL].html").toString();
+            fs.writeFileSync("tmp/com.html", oldPage.html);
+            console.log(oldPage);
+        }
+        console.log("Here");*/
+        if(!oldPage){
+            console.log("Caution");
+        }
         let result : any = compareHTML(oldPage.html, newPageHTML);
-        if(result.diffrent){
+        
+        if(result.different){
             console.log(`Things have chaged in ${mod.name}`);
             let sections : any[] = [];
             for(const c of result.changes){
-                let sect = c.after.$node.closest(".section.main");
+                let sect;
+                if (c.after && c.after.$node && c.after.$parent && c.after.$node.html() === null) {
+                    sect = c.after.$parent.closest('.section.main').html();
+                } else if(c.after.$node){
+                    sect = c.after.$node.closest('.section.main').html();
+                }
                 if(!sections.includes(sect)){
                     sections.push(sect);
                 }
             }
-            console.log(sections);
+            //console.log(sections);
             let resSects, changes;
             try{
                 changes = result.changes.map((val : any, i : number) => {
                     return val.message;
                   });
-                resSects = sections.map((val,i) => { return val.html() });
             }catch(e){
 
             }
             // Push changes to database
             let doc = {
                 "sections":resSects,
-                "messages":changes
+                "messages":changes,
+                "newPage":newPageHTML,
+                "oldPage":oldPage.html,
+                "name":mod.name,
+                "href":mod.href,
+                "added":new Date()
             }
-
+            //console.log(doc);
             await this.client.insertOne("history" ,doc);
-            this.tclient.send(`${mod.name} got changed. Here's the changes : \n${JSON.stringify(doc)}`);
+            //console.log(await this.client.findOne("current" ,{ types:"history", name:mod.name, href:mod.href }));
+            await this.client.updateOne("current" ,{ types:"history", name:mod.name, href:mod.href },{ $set:{ html:newPageHTML, lastUpdated:new Date(), updated:true } });
+            this.tclient.send(`${mod.name} got changed. Here's the changes : \n${changes.join("\n\n")}`);
         }else{
             console.log(`Things have not chaged in ${mod.name}`);
         }
     }
 
     async _task() {
-        try {
-            await this.init();
-            await this.syncModules();
-            await this.syncPages();
-            console.log("Pages synced.");
+        await this.init();
+        await this.syncModules();
+        await this.syncPages();
+        console.log("Pages synced.");
+        /* try {
+            
         }catch(e){
             this._tlog("Warning: Sync service stoped due to \n" + e);
-        }
+        } */
     }
 
     async start() {

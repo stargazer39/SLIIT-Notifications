@@ -1,6 +1,8 @@
 import { Telegraf } from 'telegraf';
 import { MongoConnect } from './mongo';
 
+const MAX_LENGTH = 4000;
+
 export class TelegramClient {
     token : string;
     bot : Telegraf;
@@ -39,8 +41,13 @@ export class TelegramClient {
         // process.once('SIGTERM', () => this.bot.stop('SIGTERM'))
     }
     send(message : string){
+        let count = 0;
         for(const c of this.chatIDs){
-            this.bot.telegram.sendMessage(c,message);
+            while(count < message.length){
+                this.bot.telegram.sendMessage(c,message.substring(count,MAX_LENGTH));
+                count += MAX_LENGTH;
+            }
+            
         }
     }
 }

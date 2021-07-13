@@ -2,5 +2,7 @@
 const htmlCompare = require("html-compare");
 
 export function compareHTML(oldHTML : string, newHTML : string) : Promise<boolean> {
-    return htmlCompare.compare(oldHTML, newHTML);
+    return htmlCompare.compare(oldHTML, newHTML, {
+        tagComparison: {name: 0, id: 0, attributes: 0, contents: 1}
+    });
 }
