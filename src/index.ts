@@ -12,11 +12,6 @@ const app = express();
 
 let sliit : SliitAPI;
 
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-})
-
 // Username password test code
 let file = fs.readFileSync("tmp/credentials.json");
 let creds = JSON.parse(file.toString());

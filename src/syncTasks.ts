@@ -88,13 +88,6 @@ export class SyncTask {
 
     private async _compareAndUpdate(oldPage : any, mod : CourseModule) {
         let newPageHTML = await this.sliit.getModuleContent(mod.href);
-        /*if(mod.name == "Communication Skills - IT1040  [2020/JUL]"){
-            console.log("lol");
-            newPageHTML = fs.readFileSync("tmp/Communication Skills - IT1040  [2020-JUL].html").toString();
-            fs.writeFileSync("tmp/com.html", oldPage.html);
-            console.log(oldPage);
-        }
-        console.log("Here");*/
         if(!oldPage){
             console.log("Caution");
         }
