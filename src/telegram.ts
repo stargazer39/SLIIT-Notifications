@@ -44,7 +44,7 @@ export class TelegramClient {
         for(const c of this.chatIDs){
             let count = 0;
             while(count < message.length){
-                this.bot.telegram.sendMessage(c,message.substring(count,MAX_LENGTH));
+                this.bot.telegram.sendMessage(c,message.substring(count,count + MAX_LENGTH));
                 count += MAX_LENGTH;
             }
         }
