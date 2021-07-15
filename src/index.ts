@@ -1,6 +1,6 @@
 import express from "express";
 import { SliitAPI, CourseModule } from "./sliit";
-import { MongoConnect } from "./mongo";
+import  { MongoClient } from 'mongodb';
 import readline from "readline";
 import fs from "fs";
 import { SyncTask } from './syncTasks';
@@ -18,7 +18,47 @@ let creds = JSON.parse(file.toString());
 console.log(`Configured with creds : ${creds.username} , ${creds.password}`);
 
 // Initialize Mongo client
-const mongo = new MongoConnect(creds.url,"SLIITHistory");
+const mongo = new MongoClient(creds.url,{ useUnifiedTopology: true });
+
+// Initalize new Telegram client
+const tclient = new TelegramClient(creds.botToken);
+
+async function run() {
+    try {
+        await mongo.connect();
+
+        // Current db
+        const db = mongo.db("SLIITHistory");
+
+        // Verify conncection
+        await db.command({ ping:1 });
+        console.log("Connected to Mongo server");
+
+        // Get configurations from DB
+        let config = await db.collection("config").findOne({ type:"config" });
+        console.log(config);
+
+        // Set DB instance and start Telegram client
+        tclient.setdb(db);
+        tclient.setConfig(config);
+        await tclient.launch();
+
+    }catch(e){
+        // TODO - connect to telegram for error notifications
+    }
+}
+
+run().catch(console.dir);
+
+
+/* 
+MongoClient.connect(creds.url, { useNewUrlParser: true }, (err, client) => {
+
+    if(err) {
+        throw err;
+    }
+    const db = client.db("SLIITHistory")
+})
 
 let task : SyncTask;
 
@@ -36,4 +76,4 @@ mongo.connect(async (err : boolean,msg : string) => {
     app.listen(port, () => {
         console.log(`Server is listening on ${port}`);
     });
-})
+}) */
