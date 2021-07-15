@@ -136,10 +136,22 @@ export class SyncTask {
         }
     }
 
+    async syncUnsent(){
+        let res  = await this.client.find("history", {}) as any[];
+        for(const d of res){
+            if(!d.sent){
+                this.tclient.send(`${d.name} got changed. Here's the changes : \n${d.messages.join("\n\n")}`);
+                await sleep(2000);
+            }
+        }
+    }
+
     async _task() {
         await this.init();
         await this.syncModules();
         await this.syncPages();
+        //await this.syncUnsent();
+
         console.log("Pages synced.");
         /* try {
             

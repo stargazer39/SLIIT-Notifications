@@ -67,7 +67,10 @@ export class MongoConnect {
     find(collection : string, obj : any){
         return new Promise((resolve,reject) => {
             const c = this.db.collection(collection);
-            resolve(c.find(obj));
+            c.find(obj).toArray().then((d) => {
+                resolve(d);
+            });
+            
         })
     }
 
