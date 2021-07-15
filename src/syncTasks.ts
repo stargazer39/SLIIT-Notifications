@@ -224,7 +224,7 @@ export class SyncTask {
         }
         while(true){
             await this._task();
-            await sleep(30*60*1000);
+            await sleep(10*60*1000);
         }
     }
 
