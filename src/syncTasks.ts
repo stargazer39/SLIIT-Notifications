@@ -1,23 +1,32 @@
-import { MongoConnect } from './mongo';
+import { Db, MongoClient } from 'mongodb';
 import { SliitAPI,CourseModule,CourseModuleToMap } from './sliit';
 import { compareHTML } from './domCompare';
 import { TelegramClient } from './telegram';
 import { sleep } from './common';
-import fs from 'fs';
+import puppeteer from 'puppeteer';
+import { v4 as uuidv4 } from 'uuid';
 
 export class SyncTask {
     private rate : number;
     private username : string;
     private password : string;
-    private client : MongoConnect;
+    private db : Db;
     private sliit : SliitAPI;
     private tclient : TelegramClient;
+    private browser : puppeteer.Browser;
+    private page : puppeteer.Page;
 
-    constructor(rate : number, username : string, password : string, client : MongoConnect, tclient? : TelegramClient) {
+    constructor(rate : number, username : string, password : string) {
         this.rate = rate;
         this.username = username;
         this.password = password;
-        this.client = client;
+    }
+
+    setDB(db : Db){
+        this.db = db;
+    }
+
+    setTclient(tclient : TelegramClient){
         this.tclient = tclient;
     }
 
@@ -26,12 +35,19 @@ export class SyncTask {
         let res = await this.sliit.login(this.username, this.password);
 
         if(!res){
-            throw new Error("Sync task init Error")
+            throw new Error("Username Password error.");
         }
+        
+        this.browser = await puppeteer.launch({
+            headless: true,
+            devtools: true,
+        });
+        this.page = await this.browser.newPage();
+        
     }
 
     async syncModules() {
-        let oldModules : any = await this.client.findOne("config", { type: "modules"});
+        let oldModules : any = await this.db.collection("config").findOne({ type: "modules"});
         let newMap = await this.sliit.getEnrolledModules();
         
         let oldMap = CourseModuleToMap(oldModules.modules);
@@ -55,16 +71,16 @@ export class SyncTask {
             });
         })
 
-        await this.client.updateOne("config", { type:"modules" }, { $set:{ modules: newData, updates:true } });
+        await this.db.collection("config").updateOne({ type:"modules" }, { $set:{ modules: newData, updates:true } });
         return newMap;
     }
 
     async syncPages() {
-        let data : any = await this.client.findOne("config", { type: "modules"});
+        let data : any = await this.db.collection("config").findOne({ type: "modules"});
         //this._tlog("Page syncing started.");
 
         for(const m of data.modules as CourseModule[]) {
-            let oldPage = await this.client.findOne("current", { href: m.href });
+            let oldPage = await this.db.collection("current").findOne({ name:m.name, href: m.href });
             if(oldPage){
                 console.log(`${m.name} Found. Checking for updates.`);
                 await this._compareAndUpdate(oldPage, m);
@@ -77,13 +93,27 @@ export class SyncTask {
 
     private async _addInitialHistory(m : CourseModule) {
         let page = await this.sliit.getModuleContent(m.href);
-        await this.client.insertOne("current", {
+        await this.db.collection("current").insertOne({
             types: "history",
             name: m.name,
             href: m.href,
             html: page,
             lastUpdated: new Date()
         });
+    }
+    private async _printToImage(html : string){
+        let id = uuidv4();
+        await this.page.setContent(`
+        
+        <div id="capturelol" style="
+            width: fit-content;
+            height:fit-content;
+            padding: 10px;
+        ">${html}</div>
+        `);
+        const body = await this.page.$('#capturelol');
+        await body.screenshot({ path:`tmp/${id}.png`, preferCSSPageSize:true });
+        return id;
     }
 
     private async _compareAndUpdate(oldPage : any, mod : CourseModule) {
@@ -92,23 +122,43 @@ export class SyncTask {
             console.log("Caution");
         }
         let result : any = compareHTML(oldPage.html, newPageHTML);
-        
+        // console.dir(await this.sliit.cookieJar.getCookieString("*"));
+        // this.page.setCookie(this.sliit.cookieJar.toJSON());
+        // this.page.goto(mod.href);
         if(result.different){
             console.log(`Things have chaged in ${mod.name}`);
+            //console.dir(result.changes);
+            
             let sections : any[] = [];
-            for(const c of result.changes){
-                let sect;
-                if (c.after && c.after.$node && c.after.$parent && c.after.$node.html() === null) {
-                    sect = c.after.$parent.closest('.section.main').html();
-                } else if(c.after.$node){
-                    sect = c.after.$node.closest('.section.main').html();
+            let nodes : any[] = [];
+            for(const change of result.changes){
+                let node, html;
+                switch(change.type) {
+                    case 'added':
+                    case 'modified':
+                        node = change.after.$node.closest(".section");
+                        //console.dir(node);
+                        break;
+                   /*  case 'removed':
+                        node = change.before.$node.closest(".section"); */
                 }
-                if(!sections.includes(sect)){
-                    sections.push(sect);
+
+                if(node){
+                    html = node.html();
+                }
+                
+                if(node && !nodes.includes(html)){
+                    nodes.push(html);
+                    //console.log(html);
+                    let id = await this._printToImage(html);
+                    sections.push({
+                        name:mod.name,
+                        id: id
+                    });
                 }
             }
-            //console.log(sections);
-            let resSects, changes;
+            // console.dir(sections);
+            let changes;
             try{
                 changes = result.changes.map((val : any, i : number) => {
                     return val.message;
@@ -118,7 +168,6 @@ export class SyncTask {
             }
             // Push changes to database
             let doc = {
-                "sections":resSects,
                 "messages":changes,
                 "newPage":newPageHTML,
                 "oldPage":oldPage.html,
@@ -127,23 +176,30 @@ export class SyncTask {
                 "added":new Date()
             }
             //console.log(doc);
-            await this.client.insertOne("history" ,doc);
+            await this.db.collection("history").insertOne(doc);
             //console.log(await this.client.findOne("current" ,{ types:"history", name:mod.name, href:mod.href }));
-            await this.client.updateOne("current" ,{ types:"history", name:mod.name, href:mod.href },{ $set:{ html:newPageHTML, lastUpdated:new Date(), updated:true } });
-            this.tclient.send(`${mod.name} got changed. Here's the changes : \n${changes.join("\n\n")}`);
+            await this.db.collection("current").updateOne({ types:"history", name:mod.name, href:mod.href },{ $set:{ html:newPageHTML, lastUpdated:new Date(), updated:true } });
+            // this.tclient.send(`${mod.name} got changed. Here's the changes : \n${changes.join("\n\n")}`);
+            // console.log(`${mod.name} got changed. Here's the changes : \n${changes.join("\n\n")}`);
+            this.tclient.send(`${mod.name} got changed. Here's the changes :`);
+            for(const c of sections){
+                console.log(c.id);
+                this.tclient.sendImage(`tmp/${c.id}.png`);
+            }
+            
         }else{
             console.log(`Things have not chaged in ${mod.name}`);
         }
     }
 
     async syncUnsent(){
-        let res  = await this.client.find("history", {}) as any[];
+        /* let res  = await this.db.collection("history").find();
         for(const d of res){
             if(!d.sent){
                 this.tclient.send(`${d.name} got changed. Here's the changes : \n${d.messages.join("\n\n")}`);
                 await sleep(2000);
             }
-        }
+        } */
     }
 
     async _task() {
@@ -161,6 +217,9 @@ export class SyncTask {
     }
 
     async start() {
+        if(!this.db && !this.tclient){
+            throw new Error("SyncTask not configured");
+        }
         while(true){
             await this._task();
             await sleep(30*60*1000);

@@ -73,4 +73,16 @@ export class TelegramClient {
             await sleep(1000);
         }
     }
+
+    async sendImage(path : string) {
+        for(const c of this.chatIDs){
+            try{
+                await this.bot.telegram.sendDocument(c, { source: path });
+            }catch(e){
+                console.log(`Sending to chatId ${c} faild with :`);
+                console.dir(e);
+            }
+            
+        }
+    }
 }

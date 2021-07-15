@@ -11,6 +11,7 @@ const port = process.env.PORT || 4200;
 const app = express();
 
 let sliit : SliitAPI;
+let task : SyncTask;
 
 // Username password test code
 let file = fs.readFileSync("tmp/credentials.json");
@@ -43,8 +44,15 @@ async function run() {
         tclient.setConfig(config);
         await tclient.launch();
 
+        // Start Sync Tasks
+        task = new SyncTask(30, creds.username, creds.password);
+        task.setDB(db);
+        task.setTclient(tclient);
+        await task.init();
+        task.start();
     }catch(e){
         // TODO - connect to telegram for error notifications
+        console.dir(e);
     }
 }
 
