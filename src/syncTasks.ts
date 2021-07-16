@@ -44,7 +44,7 @@ export class SyncTask {
             args: ['--no-sandbox']
         });
         
-        
+        this.page = await this.browser.newPage();
     }
 
     async syncModules() {
