@@ -25,6 +25,9 @@ const mongo = new MongoClient(creds.url,{ useUnifiedTopology: true });
 const tclient = new TelegramClient(creds.botToken);
 
 async function run() {
+    // TODO check why memory leak happen
+    process.setMaxListeners(Infinity);
+    
     try {
         await mongo.connect();
 
