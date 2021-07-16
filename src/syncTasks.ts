@@ -202,7 +202,6 @@ export class SyncTask {
     }
 
     async _task() {
-        await this.init();
         await this.syncModules();
         await this.syncPages();
         //await this.syncUnsent();
