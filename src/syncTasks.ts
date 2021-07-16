@@ -40,11 +40,10 @@ export class SyncTask {
         
         this.browser = await puppeteer.launch({
             headless: true,
-            devtools: true,
-            args: ['--no-sandbox'],
-            timeout: 10000,
+            devtools: false,
+            args: ['--no-sandbox']
         });
-        this.page = await this.browser.newPage();
+        
         
     }
 
