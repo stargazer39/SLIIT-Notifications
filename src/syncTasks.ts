@@ -43,8 +43,6 @@ export class SyncTask {
             devtools: false,
             args: ['--no-sandbox']
         });
-        
-        this.page = await this.browser.newPage();
     }
 
     async syncModules() {
@@ -104,6 +102,7 @@ export class SyncTask {
     }
     private async _printToImage(html : string){
         let id = uuidv4();
+        this.page = await this.browser.newPage();
         await this.page.setContent(`
         
         <div id="capturelol" style="
@@ -114,6 +113,7 @@ export class SyncTask {
         `);
         const body = await this.page.$('#capturelol');
         await body.screenshot({ path:`tmp/${id}.png`, preferCSSPageSize:true });
+        await this.page.close()
         return id;
     }
 
@@ -176,12 +176,10 @@ export class SyncTask {
                 "href":mod.href,
                 "added":new Date()
             }
-            //console.log(doc);
+           
             await this.db.collection("history").insertOne(doc);
-            //console.log(await this.client.findOne("current" ,{ types:"history", name:mod.name, href:mod.href }));
             await this.db.collection("current").updateOne({ types:"history", name:mod.name, href:mod.href },{ $set:{ html:newPageHTML, lastUpdated:new Date(), updated:true } });
-            // this.tclient.send(`${mod.name} got changed. Here's the changes : \n${changes.join("\n\n")}`);
-            // console.log(`${mod.name} got changed. Here's the changes : \n${changes.join("\n\n")}`);
+        
             this.tclient.send(`${mod.name} got changed. Here's the changes :`);
             for(const c of sections){
                 console.log(c.id);
