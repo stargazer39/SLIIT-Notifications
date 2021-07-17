@@ -179,7 +179,7 @@ export class SyncTask {
            
             let errors: any[] = []
             try {
-                await this.tclient.send(`${mod.name} got changed.\n${mod.href}\nHere's the changes :`);
+                await this.tclient.send(`${mod.name} got changed.\n${mod.href}\nTime: ${doc.added.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })}\nHere's the changes :`);
                 for(const c of sections){
                     console.log(c.id);
                     await this.tclient.sendImage(`tmp/${c.id}.png`);
