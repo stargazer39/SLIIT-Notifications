@@ -177,15 +177,23 @@ export class SyncTask {
                 "added":new Date()
             }
            
-            await this.db.collection("history").insertOne(doc);
-            await this.db.collection("current").updateOne({ types:"history", name:mod.name, href:mod.href },{ $set:{ html:newPageHTML, lastUpdated:new Date(), updated:true } });
-        
-            this.tclient.send(`${mod.name} got changed.\n${mod.href}\nHere's the changes :`);
-            for(const c of sections){
-                console.log(c.id);
-                this.tclient.sendImage(`tmp/${c.id}.png`);
+            let errors: any[] = []
+            try {
+                await this.tclient.send(`${mod.name} got changed.\n${mod.href}\nHere's the changes :`);
+                for(const c of sections){
+                    console.log(c.id);
+                    await this.tclient.sendImage(`tmp/${c.id}.png`);
+                }
+            }catch(e){
+                errors.push(e);
             }
             
+            if(errors.length == 0){
+                await this.db.collection("history").insertOne(doc);
+                await this.db.collection("current").updateOne({ types:"history", name:mod.name, href:mod.href },{ $set:{ html:newPageHTML, lastUpdated:new Date(), updated:true } });
+            }else{
+                console.dir(errors)
+            }
         }else{
             console.log(`Things have not chaged in ${mod.name}`);
         }

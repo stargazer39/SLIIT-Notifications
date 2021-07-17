@@ -60,15 +60,10 @@ export class TelegramClient {
 
     async send(message : string){
         for(const c of this.chatIDs){
-            try {
-                let count = 0;
-                while(count < message.length){
-                    await this.bot.telegram.sendMessage(c,message.substring(count,count + MAX_LENGTH));
-                    count += MAX_LENGTH;
-                }
-            }catch(e){
-                console.log(`Sending to chatId ${c} faild with :`);
-                console.dir(e);
+            let count = 0;
+            while(count < message.length){
+                await this.bot.telegram.sendMessage(c,message.substring(count,count + MAX_LENGTH));
+                count += MAX_LENGTH;
             }
             await sleep(1000);
         }
@@ -76,13 +71,7 @@ export class TelegramClient {
 
     async sendImage(path : string) {
         for(const c of this.chatIDs){
-            try{
-                await this.bot.telegram.sendDocument(c, { source: path });
-            }catch(e){
-                console.log(`Sending to chatId ${c} faild with :`);
-                console.dir(e);
-            }
-            
+            await this.bot.telegram.sendDocument(c, { source: path });
         }
     }
 }
