@@ -120,3 +120,4 @@ dist
 # Custom
 tmp
 mintty.exe.stackdump
+.vscode
