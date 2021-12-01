@@ -11,7 +11,7 @@ To start running your own bot :
  {
     "username":"[SLIIT Username]",
     "password":"[SLIIT Password]",
-    "url":"[Your modgodb URI -- mongodb+srv://",
+    "url":"[Your modgodb URI -- mongodb+srv://]",
     "botToken":"[Telegram bot token]"
 }
 ```
