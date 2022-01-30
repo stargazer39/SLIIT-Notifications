@@ -4,22 +4,6 @@ This is a Telegram bot that made to notify the changes happening in SLIIT Course
 
 **This project is written in TypeScript**
 
-To start running your own bot :
- * Make a folder called tmp and add a credentials.json file inside. Format as follows :
- <br>(This might change in next commits)
- ```json
- {
-    "username":"[SLIIT Username]",
-    "password":"[SLIIT Password]",
-    "url":"[Your modgodb URI -- mongodb+srv://]",
-    "botToken":"[Telegram bot token]"
-}
-```
-* Then
-```
-npm run build && npm start
-```
-
 This bot is live at 
 https://t.me/courseweb_notifications<br>
 * Only 2021 Y2S1 modules are currently being notified. Adding multiple years notifications is in work.<br>
